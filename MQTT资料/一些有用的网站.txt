@@ -1,0 +1,7 @@
+百度云物联网开发平台https://login.bce.baidu.com/
+阿里云大学教程https://account.aliyun.com/login/login.htm?oauth_callback=https%3A%2F%2Fedu.aliyun.com%2Fbackto%3Ftarget%3Dhttps%253A%2F%2Fedu.aliyun.com%2Flesson_1492_12259
+EMQ服务器安装https://docs.emqx.io/broker/v3/cn/install.html
+MQTT协议演示http://tools.emqx.io/connections/74597410-9059-11ea-bbb3-4ba8f2e68d52
+MQTT中文网http://mqtt.p2hp.com/mqtt-5-0
+Arduino PubSubClient MQTT库https://blog.csdn.net/dpjcn1990/article/details/92831686
+Python paho-mqtt 模块使用https://pypi.org/project/paho-mqtt/

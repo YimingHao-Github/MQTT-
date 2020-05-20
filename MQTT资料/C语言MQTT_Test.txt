@@ -1,0 +1,178 @@
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+
+char msg_json_pub[100]; //存放要发布的json数据
+char msg_json_sub[100]; //存放接收过来的json数据
+
+int equipment_id=0;
+float humidity;
+float temperature;
+float dust;
+
+float id;
+float cmd;
+
+const char* ssid = "";
+const char* password = "";
+const char* mqtt_server = "";
+char * topic_sub="spray/cmd";
+char * topic_pub="spray/information";
+
+String clientId;
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+long lastMsg = 0;
+int value = 0;
+
+//连接wifi
+void setup_wifi() {
+  //输出要链接到的WiFi名称，并连接wifi
+  delay(10);
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
+  //持续检测连接状态直到连接成功
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  //输出wifi相关信息
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+}
+
+//初始化
+void setup() {
+  //配置引脚为输出模式，设置串口波特率，连接WiFi
+  pinMode(BUILTIN_LED, OUTPUT);  
+  Serial.begin(115200);
+  setup_wifi();
+  //设置要链接的MQTT服务器，设置回调函数，开始连接
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
+  reconnect();
+  //尝试订阅主题，设置服务质量
+  while(!client.subscribe(topic_sub,0))
+  {Serial.println("订阅失败;尝试重新订阅！");
+   client.subscribe(topic_sub,0);
+   delay(300);
+   }
+   Serial.println("订阅成功~~~");
+}
+
+
+//回调函数
+void callback(char* topic, byte* payload, unsigned int length) {
+  //输出收到的主题和内容
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  char pl[100];
+  for (int i = 0; i < length; i++) {
+    pl[i]=(char)payload[i];
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+  // Switch on the LED if an 1 was received as first character
+//  if (payload[0] == 49) {
+//    Serial.print("light");
+//    digitalWrite(BUILTIN_LED, LOW);   
+//   
+//  }
+//  if (payload[0] == 48){
+//    Serial.print("dark");
+//    digitalWrite(BUILTIN_LED, HIGH);  
+//  }
+  decodeJson(pl);
+  if(id==equipment_id){
+    if(cmd==1){
+      Serial.print("light");
+      Serial.print("");
+      digitalWrite(BUILTIN_LED,LOW);  
+    }
+    else if(cmd==0){
+      Serial.print("dark");
+      Serial.print("");
+      digitalWrite(BUILTIN_LED,HIGH);  
+    }
+  }
+  else {
+        Serial.print("Not to me");
+        Serial.print("");
+  }
+}
+
+//重新连接服务器
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // 连接成功
+    if (client.connect(clientId.c_str())) {
+      Serial.println("connected");
+      client.publish(topic_pub,msg_json_pub);
+      client.subscribe(topic_sub,0);
+    } 
+    //连接失败
+    else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      delay(5000);
+    }
+  }
+}
+
+
+
+void loop() {
+  delay(3000);
+  //得到湿度，温度，灰尘浓度
+  humidity=59;
+  temperature=27;
+  dust=20;
+  
+  //判断是否连接，否则重连
+  if (!client.connected()) {
+    reconnect();
+  }
+  
+  //处理消息及保持心跳
+  client.loop();
+
+  //将湿度，温度，灰尘浓度编码为JSON字符串
+  encodeJson();
+
+    Serial.print("Publish message: ");
+    Serial.println(msg_json_pub);
+    client.publish(topic_pub, msg_json_pub);
+}
+
+//JSON编码函数
+void encodeJson(){
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject & root = jsonBuffer.createObject();
+  
+  root["id"] =equipment_id;
+  root["humidity"] = humidity;
+  root["temperature"] = temperature;
+  root["dust"]=dust;
+//  root.prettyPrintTo(Serial);
+  root.printTo(msg_json_pub);
+}
+
+//JSON解码函数
+void decodeJson(char msg_json[100]){
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& root = jsonBuffer.parseObject(msg_json);
+  id = root["id"];
+  cmd = root["cmd"];
+
+  Serial.println(id);
+  Serial.println(cmd);
+  
+}
